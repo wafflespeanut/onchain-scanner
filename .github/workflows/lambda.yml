@@ -21,6 +21,9 @@ jobs:
         cd FetchOnchainBars
         cargo lambda build --release --arm64
     - name: Deploy lambda function
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         cd FetchOnchainBars
-        cargo lambda deploy --region ${{ secrets.AWS_REGION }} --role ${{ secrets.AWS_IAM_ROLE }} -- --access-key ${{ secrets.AWS_ACCESS_KEY_ID }} --secret-key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        cargo lambda deploy --region ${{ secrets.AWS_REGION }} --role ${{ secrets.AWS_IAM_ROLE }}
