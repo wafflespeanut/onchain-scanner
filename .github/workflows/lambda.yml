@@ -26,4 +26,4 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         cd FetchOnchainBars
-        cargo lambda deploy --region ${{ secrets.AWS_REGION }} --role arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/LambdaBasic
+        cat ../aws_regions.txt | xargs -I {} cargo lambda deploy --region {} --role arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/LambdaBasic

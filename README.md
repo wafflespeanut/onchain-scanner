@@ -1,5 +1,4 @@
 
-
 ### Custom policy for `cargo-lambda` deployment
 
 ```json
@@ -26,10 +25,23 @@
 				"lambda:UpdateFunctionCode",
 				"lambda:GetFunction"
 			],
-			"Resource": "arn:aws:lambda:ap-east-1:${AWS_ACCOUNT}:function:FetchOnchainBars"
+			"Resource": "arn:aws:lambda:*:*:function:FetchOnchainBars"
 		}
 	]
 }
 ```
 
-> Given that Lambda pricing is for running time and every millisecond counts, region is chosen based on HTTP response times obtained from https://check-host.net/
+### Custom policy for `onchain-scanner`
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "lambda:InvokeFunction",
+            "Resource": "arn:aws:lambda:*:*:*"
+        }
+    ]
+}
+```

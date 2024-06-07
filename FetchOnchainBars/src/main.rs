@@ -1,19 +1,7 @@
+use shared::{Request, Response};
+
 use futures::future;
 use lambda_runtime::{run, service_fn, tracing, Error, LambdaEvent};
-use serde::{Deserialize, Serialize};
-
-#[derive(Deserialize)]
-struct Request {
-    network: String,
-    pool_address: String,
-}
-
-#[derive(Serialize)]
-struct Response {
-    status: Option<u16>,
-    body: Option<String>,
-    err: Option<String>,
-}
 
 async fn handler(event: LambdaEvent<Vec<Request>>) -> Result<Vec<Response>, Error> {
     let urls = event.payload.into_iter().map(|r| {
