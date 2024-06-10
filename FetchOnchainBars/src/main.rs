@@ -6,7 +6,7 @@ use lambda_runtime::{run, service_fn, tracing, Error, LambdaEvent};
 async fn handler(event: LambdaEvent<Vec<Request>>) -> Result<Vec<Response>, Error> {
     let urls = event.payload.into_iter().map(|r| {
         format!(
-            "https://api.geckoterminal.com/api/v2/networks/{network}/pools/{pool}/ohlcv/day",
+            "https://api.geckoterminal.com/api/v2/networks/{network}/pools/{pool}/ohlcv/day?limit=1000",
             network = r.network,
             pool = r.pool_address
         )

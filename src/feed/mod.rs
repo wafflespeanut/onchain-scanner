@@ -2,8 +2,8 @@ use std::time::Duration;
 
 mod cm;
 
-#[derive(strum_macros::Display, strum_macros::VariantArray)]
-enum Network {
+#[derive(Clone, Copy, strum_macros::Display, strum_macros::VariantArray)]
+pub enum Network {
     // serialized as geckoterminal's network names
     #[strum(serialize = "solana")]
     Solana,
@@ -38,9 +38,7 @@ pub struct Pair {
 }
 
 #[async_trait::async_trait]
-trait Feed {
-    const DELAY: Duration = Duration::from_secs(1);
-
+pub trait Feed {
     type Network: From<Network>;
 
     async fn fetch_addresses(

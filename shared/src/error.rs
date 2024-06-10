@@ -1,6 +1,6 @@
-use thiserror::Error;
+use thiserror::Error as ThisError;
 
-#[derive(Error, Debug)]
+#[derive(ThisError, Debug)]
 pub enum Error {
     #[error("AWS SDK error: {0}")]
     AwsSdk(#[from] aws_sdk_lambda::Error),
@@ -20,6 +20,26 @@ pub enum Error {
     Http(#[from] reqwest::Error),
     #[error("Invalid timestamp: {0}")]
     InvalidTimestamp(i64),
+    #[error("Storage error: {0}")]
+    Storage(#[from] redb::Error),
+    #[error("Batch error: {0}")]
+    Batch(#[from] std::sync::Arc<Error>),
 }
+
+macro_rules! impl_from(
+    ($from:ty, $to:ident) => {
+        impl From<$from> for Error {
+            fn from(e: $from) -> Self {
+                Error::$to(e.into())
+            }
+        }
+    };
+);
+
+impl_from!(redb::DatabaseError, Storage);
+impl_from!(redb::StorageError, Storage);
+impl_from!(redb::CommitError, Storage);
+impl_from!(redb::TransactionError, Storage);
+impl_from!(redb::TableError, Storage);
 
 pub type Result<T> = std::result::Result<T, Error>;

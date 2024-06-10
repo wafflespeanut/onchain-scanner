@@ -14,6 +14,10 @@ impl<P: super::Provider> Host<P> for AwsLambda
 where
     P: Send + DeserializeOwned,
 {
+    fn bulk_size(&self) -> usize {
+        self.clients.len()
+    }
+
     async fn configure(&mut self) {
         if self.clients.len() > 0 {
             return;
@@ -27,10 +31,10 @@ where
 
     async fn __trigger(
         &self,
-        request: Vec<shared::Request>,
-    ) -> Vec<shared::Result<shared::Response>> {
-        future::join_all(self.clients.iter().zip(request.into_iter()).map(|(client, request)| {
-            async move {
+        request: Vec<Vec<shared::Request>>,
+    ) -> Vec<shared::Result<Vec<shared::Response>>> {
+        future::join_all(self.clients.iter().zip(request.into_iter()).map(
+            |(client, request)| async move {
                 let res = client
                     .invoke()
                     .function_name("FetchOnchainBars")
@@ -49,8 +53,8 @@ where
                     ));
                 }
                 serde_json::from_slice(&payload).map_err(shared::Error::Serde)
-            }
-        }))
+            },
+        ))
         .await
     }
 }

@@ -1,7 +1,13 @@
+use std::time::{Duration, Instant};
+
+use async_std::sync::Mutex;
 use serde::Deserialize;
+
+const DELAY: Duration = Duration::from_millis(1100);
 
 struct CoinMarketCap {
     client: reqwest::Client,
+    last_request_time: Mutex<std::time::Instant>,
 }
 
 #[derive(Deserialize)]
@@ -55,6 +61,16 @@ impl super::Feed for CoinMarketCap {
         network: Self::Network,
         page: u32,
     ) -> Result<Vec<super::Pair>, shared::Error> {
+        {
+            // Avoid DoS'ing API
+            let mut time = self.last_request_time.lock().await;
+            let elapsed = time.elapsed();
+            if elapsed < DELAY {
+                async_std::task::sleep(DELAY - elapsed).await;
+            }
+            *time = Instant::now();
+        }
+
         match self.client
             .get(format!("https://api.coinmarketcap.com/dexer/v3/platformpage/pair-pages?platform-id={}&sort-field=txs24h&desc=true&page={}&pageSize=100", network.0, page))
             .send()

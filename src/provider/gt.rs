@@ -25,19 +25,29 @@ pub enum GeckoTerminal {
 }
 
 impl super::Provider for GeckoTerminal {
-    fn ohlc_data(&self) -> shared::Result<Vec<super::OHLC>> {
+    fn ohlcv_data(&self) -> shared::Result<crate::ohlcv::OHLCVList> {
         match self {
-            GeckoTerminal::Success { data } => {
-                data.attributes.ohlcv_list.iter().map(|&(t, o, h, l, c, v)| Ok(super::OHLC {
-                    timestamp: DateTime::from_timestamp(t, 0).ok_or(shared::Error::InvalidTimestamp(t))?,
-                    open: o,
-                    high: h,
-                    low: l,
-                    close: c,
-                    volume: v,
-                })).collect()
-            },
-            GeckoTerminal::Failure { status } => Err(shared::Error::UnexpectedStatusCode(status.error_code as i32, Some(status.error_message.clone()))),
+            GeckoTerminal::Success { data } => data
+                .attributes
+                .ohlcv_list
+                .iter()
+                .map(|&(t, o, h, l, c, v)| {
+                    Ok(crate::ohlcv::OHLCV {
+                        timestamp: DateTime::from_timestamp(t, 0)
+                            .ok_or(shared::Error::InvalidTimestamp(t))?,
+                        open: o,
+                        high: h,
+                        low: l,
+                        close: c,
+                        volume: v,
+                    })
+                })
+                .collect::<shared::Result<Vec<_>>>()
+                .map(Into::into),
+            GeckoTerminal::Failure { status } => Err(shared::Error::UnexpectedStatusCode(
+                status.error_code as i32,
+                Some(status.error_message.clone()),
+            )),
         }
     }
 }
