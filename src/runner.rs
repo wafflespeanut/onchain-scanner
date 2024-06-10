@@ -6,6 +6,7 @@ use super::storage::Storage;
 use super::{
     feed::{Feed, Network},
     host::Host,
+    notifier::Notifier,
     provider::Provider,
 };
 
@@ -15,20 +16,22 @@ pub struct Config {
     pub num_host_requests: u8,
 }
 
-pub struct Runner<F, H, P> {
+pub struct Runner<F, H, P, N> {
     feed: F,
     hosts: Vec<H>,
     provider: P,
     config: Config,
     storage: Storage,
+    notifier: N,
     buffer: Vec<shared::Request>,
 }
 
-impl<F, H, P> Runner<F, H, P>
+impl<F, H, P, N> Runner<F, H, P, N>
 where
     F: Feed,
     H: Host<P> + Sync,
     P: Provider,
+    N: Notifier + Sync,
 {
     async fn run(&mut self) {
         let mut current_page = 1;
@@ -126,8 +129,12 @@ where
                             );
                             self.buffer.push(pair);
                         }
-                        Ok(mut resp) => {
-                            let analysis = resp.analyze();
+                        Ok(resp) => {
+                            if let Some(analysis) = resp.analyze() {
+                                if let Err(e) = self.notifier.post_analysis(analysis).await {
+                                    log::error!("failed to post analysis: {}", e);
+                                }
+                            }
                         }
                     }
                 }
