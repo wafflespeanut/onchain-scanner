@@ -25,7 +25,8 @@ pub struct TokenInfo {
 
 impl Into<Vec<super::Pair>> for Paginated<TokenInfo> {
     fn into(self) -> Vec<super::Pair> {
-        self.data.page_list
+        self.data
+            .page_list
             .into_iter()
             .map(|x| super::Pair {
                 contract_address: x.pair_contract_address,
@@ -62,6 +63,12 @@ impl super::Feed for CoinMarketCap {
 
     type Response = Paginated<TokenInfo>;
 
+    fn modify(req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        req.header("Host", "api.coinmarketcap.com")
+           .header("Origin", "https://coinmarketcap.com")
+           .header("Referer", "https://coinmarketcap.com/")
+    }
+
     fn url(network: super::Network, page: u16) -> String {
         format!(
             "https://api.coinmarketcap.com/dexer/v3/platformpage/pair-pages?platform-id={}&sort-field=txs24h&desc=true&page={}&pageSize=100",
@@ -73,8 +80,8 @@ impl super::Feed for CoinMarketCap {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
     use crate::feed::Pair;
+    use serde_json::json;
 
     #[test]
     fn extract_pair() {
@@ -82,6 +89,9 @@ mod tests {
         let pairs: Vec<Pair> = data.into();
         assert_eq!(pairs[0].base_token, "WETH");
         assert_eq!(pairs[0].quote_token, "USDC");
-        assert_eq!(pairs[0].contract_address, "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640");
+        assert_eq!(
+            pairs[0].contract_address,
+            "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640"
+        );
     }
 }

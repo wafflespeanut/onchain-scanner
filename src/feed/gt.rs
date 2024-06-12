@@ -38,6 +38,8 @@ pub struct Attributes {
 }
 
 impl super::Feed for GeckoTerminal {
+    const MAX_PAGES: Option<u16> = Some(10);
+
     const DELAY: Duration = Duration::from_millis(2050);
 
     type Response = PaginatedData;
@@ -45,16 +47,15 @@ impl super::Feed for GeckoTerminal {
     fn url(network: super::Network, page: u16) -> String {
         format!(
             "https://api.geckoterminal.com/api/v2/networks/{}/pools?page={}&sort=h24_tx_count_desc",
-            network,
-            page
+            network, page
         )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
     use crate::feed::Pair;
+    use serde_json::json;
 
     #[test]
     fn extract_pair() {
@@ -62,6 +63,9 @@ mod tests {
         let pairs: Vec<Pair> = data.into();
         assert_eq!(pairs[0].base_token, "Trump");
         assert_eq!(pairs[0].quote_token, "SOL");
-        assert_eq!(pairs[0].contract_address, "7sXvhsvzmuxomqdFAU6fzxY3bukX9KkVcWWCLSw51osX");
+        assert_eq!(
+            pairs[0].contract_address,
+            "7sXvhsvzmuxomqdFAU6fzxY3bukX9KkVcWWCLSw51osX"
+        );
     }
 }

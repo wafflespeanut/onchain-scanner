@@ -34,7 +34,7 @@ pub trait Host<P: Provider> {
                             (Some(200), Some(b)) => {
                                 serde_json::from_str(&b).map_err(shared::Error::Serde)
                             }
-                            (Some(s), b) => Err(shared::Error::UnexpectedStatusCode(s as i32, b)),
+                            (Some(s), b) => Err(shared::Error::UnexpectedStatusCode(s, b)),
                             _ => unreachable!(),
                         }
                     })

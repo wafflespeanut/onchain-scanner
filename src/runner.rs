@@ -43,12 +43,7 @@ pub struct Runner<P, N> {
     ended_feeds: Vec<bool>,
 }
 
-impl
-    Runner<
-        super::provider::GeckoTerminal,
-        super::notifier::DiscordWebhook,
-    >
-{
+impl Runner<super::provider::GeckoTerminal, super::notifier::DiscordWebhook> {
     pub fn new(c: Config) -> shared::Result<Self> {
         Ok(Runner {
             feeds: vec![Box::new(super::feed::CoinMarketCap::default())],
@@ -95,7 +90,7 @@ where
             }
 
             if self.config.post_once && posted_once {
-                log::info!("Exiting after first run");
+                log::info!("exiting after first run");
                 return;
             }
 
@@ -122,7 +117,7 @@ where
 
             while self.buffer.len() >= batch_len {
                 log::info!(
-                    "Reached batch size {} for {}, flushing",
+                    "reached batch size {} for {}, flushing",
                     self.buffer.len(),
                     network
                 );
@@ -132,7 +127,7 @@ where
             current_page += 1;
             if let Some(max) = self.config.max_pages {
                 if current_page > max {
-                    log::info!("Reached max pages for network: {}", network);
+                    log::info!("reached max pages for network: {}", network);
                     current_page = 1;
                     current_network_idx += 1;
                 }
@@ -152,31 +147,45 @@ where
             .to_std()
             .expect("invalid duration?");
         log::info!(
-            "Blocking until UTC midnight for {} seconds",
+            "blocking until UTC midnight for {} seconds",
             duration.as_secs()
         );
         async_std::task::sleep(duration).await;
     }
 
     async fn populate_pairs(&mut self, network: Network, page: u16) -> shared::Result<bool> {
-        log::info!("fetching addresses for network: {}", network);
-        let res = future::join_all(self.feeds.iter().enumerate()
-            .map(|(i, f)| {
-                let ended = self.ended_feeds[i];
-                async move {
-                    if ended {
-                        return Ok(vec![]);
+        log::info!(
+            "fetching addresses for network: {}, page: {}",
+            network,
+            page
+        );
+        let res = future::join_all(
+            self.feeds
+                .iter()
+                .enumerate()
+                .map(|(i, f)| {
+                    let ended = self.ended_feeds[i];
+                    async move {
+                        if ended {
+                            return Ok(vec![]);
+                        }
+                        f.fetch_addresses(network, page).await
                     }
-                    f.fetch_addresses(network, page).await
-                }
-            })
-            .collect::<Vec<_>>()
-        ).await;
+                })
+                .collect::<Vec<_>>(),
+        )
+        .await;
 
         for (i, pairs) in res.into_iter().enumerate() {
             let pairs = pairs?;
+            log::debug!("received {} pairs", pairs.len());
             if pairs.is_empty() {
-                log::info!("Feed {} has ended for page {} (network: {})", i + 1, page, network);
+                log::info!(
+                    "feed {} has ended for page {} (network: {})",
+                    i + 1,
+                    page,
+                    network
+                );
                 self.ended_feeds[i] = true;
             }
             for pair in pairs {
@@ -207,13 +216,14 @@ where
         }
 
         if self.ended_feeds.iter().all(|&e| e) {
+            log::debug!("all feeds ended for network: {}", network);
             return Ok(false);
         }
         Ok(true)
     }
 
     async fn flush(&mut self) {
-        log::info!("Flushing buffer (len: {})", self.buffer.len());
+        log::info!("flushing buffer (len: {})", self.buffer.len());
         let requests = self
             .hosts
             .iter()

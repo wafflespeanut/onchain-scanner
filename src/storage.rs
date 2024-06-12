@@ -12,7 +12,7 @@ pub struct Storage {
 impl Storage {
     pub fn new(path: &str) -> shared::Result<Self> {
         Ok(Storage {
-            db: Arc::new(Database::open(path)?),
+            db: Arc::new(Database::create(path)?),
         })
     }
 

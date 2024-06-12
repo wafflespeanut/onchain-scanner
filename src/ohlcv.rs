@@ -1,7 +1,7 @@
 use chrono::{offset::Utc, DateTime};
 use serde::Serialize;
 
-#[derive(Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct OHLCV {
     pub timestamp: DateTime<Utc>,
     pub open: f64,
@@ -31,13 +31,61 @@ pub struct Analysis {
     pub ohlcv: Vec<OHLCV>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Default, Debug)]
+pub struct AnalysisOne {
+    pub range_high_break: Option<RangeBreak>,
+    pub range_low_break: Option<RangeBreak>,
+    pub bullish_engulfing: Option<Engulfing>,
+    pub bearish_engulfing: Option<Engulfing>,
+    pub ohlcv: OHLCV,
+}
+
+impl Analysis {
+    #[allow(deprecated)]
+    pub fn today_data(&self) -> Option<AnalysisOne> {
+        let today = Utc::now().date();
+        let mut a = match self.ohlcv.last() {
+            Some(d) if d.timestamp.date() == today => AnalysisOne {
+                ohlcv: d.clone(),
+                ..Default::default()
+            },
+            _ => return None,
+        };
+        match self.range_high_breaks.last() {
+            Some(&b) if b.idx == self.ohlcv.len() - 1 => {
+                a.range_high_break = Some(b);
+            }
+            _ => (),
+        }
+        match self.range_low_breaks.last() {
+            Some(&b) if b.idx == self.ohlcv.len() - 1 => {
+                a.range_low_break = Some(b);
+            }
+            _ => (),
+        }
+        match self.bullish_engulfing.last() {
+            Some(&b) if b.idx == self.ohlcv.len() - 1 => {
+                a.bullish_engulfing = Some(b);
+            }
+            _ => (),
+        }
+        match self.bearish_engulfing.last() {
+            Some(&b) if b.idx == self.ohlcv.len() - 1 => {
+                a.bearish_engulfing = Some(b);
+            }
+            _ => (),
+        }
+        Some(a)
+    }
+}
+
+#[derive(Serialize, Debug, Clone, Copy)]
 pub struct RangeBreak {
     pub prev_bound: f64,
     pub idx: usize,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone, Copy)]
 pub struct Engulfing {
     pub idx: usize,
     pub num_engulfing: u8,

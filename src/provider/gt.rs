@@ -45,7 +45,7 @@ impl super::Provider for GeckoTerminal {
                 .collect::<shared::Result<Vec<_>>>()
                 .map(Into::into),
             GeckoTerminal::Failure { status } => Err(shared::Error::UnexpectedStatusCode(
-                status.error_code as i32,
+                status.error_code,
                 Some(status.error_message.clone()),
             )),
         }

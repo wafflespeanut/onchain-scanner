@@ -17,7 +17,9 @@ pub enum Error {
     #[error("Runtime error: {0}")]
     Runtime(String),
     #[error("Unexpected status code: {0} (payload: {1:?}")]
-    UnexpectedStatusCode(i32, Option<String>),
+    UnexpectedStatusCode(u16, Option<String>),
+    #[error("Unexpected response: {0}")]
+    UnexpectedResponse(String),
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
     #[error("Invalid timestamp: {0}")]

@@ -67,7 +67,7 @@ where
                 let payload = res.payload.unwrap().into_inner();
                 if res.status_code != 200 {
                     return Err(shared::Error::UnexpectedStatusCode(
-                        res.status_code,
+                        res.status_code as u16,
                         String::from_utf8(payload).ok(),
                     ));
                 }
