@@ -2,6 +2,8 @@ use thiserror::Error as ThisError;
 
 #[derive(ThisError, Debug)]
 pub enum Error {
+    #[error("Configuration error: {0}")]
+    Config(String),
     #[error("AWS SDK error: {0}")]
     AwsSdk(#[from] aws_sdk_lambda::Error),
     #[error("Serde error: {0}")]

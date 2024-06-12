@@ -1,12 +1,42 @@
 use super::Host;
-use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_lambda::{config::Region, primitives::Blob, Client};
+use aws_credential_types::Credentials;
+use aws_sdk_lambda::{config::Region, primitives::Blob, Client, Config};
 use futures::future;
 use serde::de::DeserializeOwned;
 
+use std::env;
+
 #[derive(Default)]
 pub struct AwsLambda {
+    name: String,
     clients: Vec<Client>,
+}
+
+impl AwsLambda {
+    pub fn new(name: &str) -> shared::Result<Self> {
+        let mut clients = vec![];
+        let creds = if let (Some(a), Some(s)) = (
+            env::var("AWS_ACCESS_KEY").ok(),
+            env::var("AWS_SECRET_ACCESS_KEY").ok(),
+        ) {
+            Credentials::from_keys(a, s, None)
+        } else {
+            return Err(shared::Error::Config(
+                "Missing AWS access and secret keys".into(),
+            ));
+        };
+        for &r in shared::AWS_REGIONS.iter() {
+            let config = Config::builder()
+                .credentials_provider(creds.clone())
+                .region(Region::new(r))
+                .build();
+            clients.push(Client::from_conf(config));
+        }
+        Ok(AwsLambda {
+            name: name.into(),
+            clients,
+        })
+    }
 }
 
 #[async_trait::async_trait]
@@ -18,27 +48,16 @@ where
         self.clients.len()
     }
 
-    async fn configure(&mut self) {
-        if self.clients.len() > 0 {
-            return;
-        }
-        for &r in shared::AWS_REGIONS.iter() {
-            let region_provider = RegionProviderChain::first_try(Region::new(String::from(r)));
-            let config = aws_config::from_env().region(region_provider).load().await;
-            self.clients.push(Client::new(&config));
-        }
-    }
-
     async fn __trigger(
         &self,
         request: Vec<Vec<shared::Request>>,
     ) -> Vec<shared::Result<Vec<shared::Response>>> {
         future::join_all(self.clients.iter().zip(request.into_iter()).map(
-            |(client, request)| async move {
+            |(client, req)| async move {
                 let res = client
                     .invoke()
-                    .function_name("FetchOnchainBars")
-                    .payload(Blob::new(serde_json::to_vec(&request)?))
+                    .function_name(&self.name)
+                    .payload(Blob::new(serde_json::to_vec(&req)?))
                     .send()
                     .await
                     .map_err(|e| shared::Error::AwsSdk(e.into()))?;

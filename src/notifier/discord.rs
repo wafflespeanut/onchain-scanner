@@ -19,6 +19,7 @@ impl DiscordWebhook {
 #[async_trait::async_trait]
 impl super::Notifier for DiscordWebhook {
     async fn notify(&self, msg: &str) -> shared::Result<()> {
+        log::info!("POST {}", self.url);
         let res = self
             .client
             .post(&self.url)

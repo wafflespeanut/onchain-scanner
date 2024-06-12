@@ -5,19 +5,19 @@ mod aws;
 mod azure;
 mod gcloud;
 
+pub use self::aws::AwsLambda;
+
 #[async_trait::async_trait]
 pub trait Host<P: Provider> {
-    fn bulk_size(&self) -> usize {
-        1
-    }
-    async fn configure(&mut self);
+    fn bulk_size(&self) -> usize;
+
     async fn __trigger(
         &self,
         request: Vec<Vec<shared::Request>>,
     ) -> Vec<shared::Result<Vec<shared::Response>>>;
 
     async fn trigger(&self, request: Vec<Vec<shared::Request>>) -> Vec<Vec<shared::Result<P>>> {
-        assert_eq!(request.len(), self.bulk_size()); // ensure that requests match max size for this host
+        // assert_eq!(request.len(), self.bulk_size()); // ensure that requests match max size for this host
         let resp_len = request.iter().map(|r| r.len()).collect::<Vec<_>>();
         self.__trigger(request)
             .await

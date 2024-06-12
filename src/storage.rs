@@ -4,6 +4,7 @@ use redb::{Database, TableDefinition};
 
 const IGNORED_ADDRS: TableDefinition<&str, ()> = TableDefinition::new("blacklist");
 
+#[derive(Clone)]
 pub struct Storage {
     db: Arc<Database>,
 }

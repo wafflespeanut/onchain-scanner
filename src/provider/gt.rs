@@ -7,12 +7,12 @@ struct OHLCVList {
 }
 
 #[derive(Deserialize, Debug)]
-struct RespData {
+pub struct RespData {
     attributes: OHLCVList,
 }
 
 #[derive(Deserialize, Debug)]
-struct RespError {
+pub struct RespError {
     error_code: u16,
     error_message: String,
 }

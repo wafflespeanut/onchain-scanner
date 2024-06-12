@@ -12,6 +12,7 @@ pub use self::error::{Error, Result};
 pub struct Request {
     pub network: String,
     pub pool_address: String,
+    pub token: Option<(String, String)>,
 }
 
 #[derive(Serialize, Deserialize)]

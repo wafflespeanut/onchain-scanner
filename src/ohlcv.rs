@@ -28,6 +28,7 @@ pub struct Analysis {
     pub range_low_breaks: Vec<RangeBreak>,
     pub bullish_engulfing: Vec<Engulfing>,
     pub bearish_engulfing: Vec<Engulfing>,
+    pub ohlcv: Vec<OHLCV>,
 }
 
 #[derive(Serialize, Debug)]
@@ -166,6 +167,7 @@ impl OHLCVList {
                 }
             }
         }
+        analysis.ohlcv = self.0;
         Some(analysis)
     }
 }
