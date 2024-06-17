@@ -15,7 +15,7 @@ aws-sdk-lambda = { version = "1.31", features = ["behavior-version-latest"] }
 aws-types = "1.3.0"
 axum = "0.7.5"
 bit-vec = "0.6.3"
-chrono = "0.4.38"
+chrono = { version = "0.4.38", features = ["serde"] }
 fast_log = "1.6.16"
 futures = "0.3.30"
 lazy_static = "1.4.0"

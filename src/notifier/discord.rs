@@ -93,10 +93,7 @@ impl super::Notifier for BufferedDiscordWebhook {
                     .and_then(|v| v.to_str().ok())
                     .and_then(|v| v.parse::<f64>().ok())
                     .map(|f| Duration::from_secs(f.ceil() as u64));
-                log::warn!(
-                    "rate limited, retrying after {:?}",
-                    reset
-                );
+                log::warn!("rate limited, retrying after {:?}", reset);
                 g.reset = reset.unwrap_or(Duration::from_secs(1));
                 g.msg = msg + "\n" + &g.msg;
             }
