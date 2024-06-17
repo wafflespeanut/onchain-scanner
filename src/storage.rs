@@ -11,15 +11,20 @@ pub struct Storage {
 
 impl Storage {
     pub fn new(path: &str) -> shared::Result<Self> {
-        Ok(Storage {
+        let s = Storage {
             db: Arc::new(Database::create(path)?),
-        })
+        };
+        for addr in shared::IGNORED_POOLS {
+            log::info!("adding pool {} to blacklist", addr);
+            s.block_address(addr)?;
+        }
+        Ok(s)
     }
 
     // TODO: redb has its own concurrency management, evaluate whether
     // it's blocking these methods
 
-    pub async fn is_blocked(&self, contract_addr: &str) -> shared::Result<bool> {
+    pub fn is_blocked(&self, contract_addr: &str) -> shared::Result<bool> {
         let exists;
         let tx = self.db.begin_read()?;
         {
@@ -30,7 +35,7 @@ impl Storage {
         Ok(exists)
     }
 
-    pub async fn block_address(&self, contract_addr: &str) -> shared::Result<()> {
+    pub fn block_address(&self, contract_addr: &str) -> shared::Result<()> {
         let tx = self.db.begin_write()?;
         {
             let mut table = tx.open_table(IGNORED_ADDRS)?;
@@ -40,7 +45,7 @@ impl Storage {
         Ok(())
     }
 
-    pub async fn unblock_address(&self, contract_addr: &str) -> shared::Result<bool> {
+    pub fn unblock_address(&self, contract_addr: &str) -> shared::Result<bool> {
         let exists;
         let tx = self.db.begin_write()?;
         {

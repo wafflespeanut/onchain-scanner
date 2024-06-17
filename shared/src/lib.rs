@@ -5,7 +5,7 @@ mod emitted {
 }
 mod error;
 
-pub use self::emitted::AWS_REGIONS;
+pub use self::emitted::{AWS_REGIONS, IGNORED_POOLS};
 pub use self::error::{Error, Result};
 
 #[derive(Clone, Serialize, Deserialize)]

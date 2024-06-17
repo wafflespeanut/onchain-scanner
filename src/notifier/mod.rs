@@ -2,7 +2,7 @@ use super::ohlcv::Analysis;
 
 mod discord;
 
-pub use self::discord::DiscordWebhook;
+pub use self::discord::BufferedDiscordWebhook;
 
 #[async_trait::async_trait]
 pub trait Notifier {
@@ -10,16 +10,21 @@ pub trait Notifier {
 
     async fn post_analysis(
         &self,
-        token: Option<&(String, String)>,
+        pair: &shared::Request,
         analysis: Analysis,
     ) -> shared::Result<()> {
         let mut msg = String::new();
+        msg.push_str("### ");
         msg.push_str(
-            &token
-                .map(|(base, quote)| format!("### {}/{}", base, quote))
+            &pair
+                .token
+                .as_ref()
+                .map(|(base, quote)| format!(" {}/{}", base, quote))
                 .unwrap_or_default(),
         );
-        msg.push_str("\n```");
+        msg.push_str("\n```\n");
+        msg.push_str(&pair.pool_address);
+        msg.push_str("\n");
 
         let mut today_data = String::new();
         if let Some(today) = analysis.today_data() {

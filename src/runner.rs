@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::time::{Duration, Instant};
 
 use chrono::{offset::Utc, TimeDelta};
 use futures::future;
@@ -14,6 +15,8 @@ use super::{
     provider::Provider,
 };
 
+const ONE_MIN_FIVE_SECS: Duration = Duration::from_secs(65);
+
 #[derive(Deserialize)]
 pub struct Config {
     pub lambda_function: String,
@@ -22,7 +25,7 @@ pub struct Config {
     pub max_pages: Option<u16>,
     #[serde(default)]
     pub max_attempts_per_pair: Option<u16>,
-    pub num_host_requests: u8,
+    pub host_requests_per_min: u8,
     pub discord_url: String,
     #[serde(default)]
     pub discord_url_network: HashMap<String, String>,
@@ -41,9 +44,10 @@ pub struct Runner<P, N> {
     buffer: Vec<shared::Request>,
     pools: HashSet<String>,
     ended_feeds: Vec<bool>,
+    current: Instant,
 }
 
-impl Runner<super::provider::GeckoTerminal, super::notifier::DiscordWebhook> {
+impl Runner<super::provider::GeckoTerminal, super::notifier::BufferedDiscordWebhook> {
     pub fn new(c: Config) -> shared::Result<Self> {
         Ok(Runner {
             feeds: vec![Box::new(super::feed::CoinMarketCap::default())],
@@ -58,14 +62,18 @@ impl Runner<super::provider::GeckoTerminal, super::notifier::DiscordWebhook> {
                         .unwrap_or(&c.discord_url);
                     (
                         n.to_string(),
-                        super::notifier::DiscordWebhook::new(url.clone()),
+                        super::notifier::BufferedDiscordWebhook::new(url.clone()),
                     )
                 })
                 .collect(),
-            buffer: Vec::with_capacity(c.num_host_requests as usize),
+            buffer: Vec::with_capacity(c.host_requests_per_min as usize),
             config: c,
             pools: HashSet::with_capacity(1000),
             ended_feeds: vec![],
+            // add 1-min so that it doesn't block on first attempt
+            current: Instant::now()
+                .checked_sub(ONE_MIN_FIVE_SECS)
+                .expect("simple time math fail"),
         })
     }
 }
@@ -81,7 +89,7 @@ where
         let mut posted_once = !self.config.post_now;
         self.ended_feeds = vec![false; self.feeds.len()];
 
-        let batch_len = self.config.num_host_requests as usize
+        let batch_len = self.config.host_requests_per_min as usize
             * self.hosts.iter().map(|h| h.bulk_size()).sum::<usize>();
         loop {
             if current_network_idx == Network::VARIANTS.len() {
@@ -189,7 +197,7 @@ where
                 self.ended_feeds[i] = true;
             }
             for pair in pairs {
-                match self.storage.is_blocked(&pair.contract_address).await {
+                match self.storage.is_blocked(&pair.contract_address) {
                     Err(e) => log::error!("failed to check blacklist for address {}", e),
                     Ok(true) => {
                         log::info!("skipping blocked address: {}", pair.contract_address);
@@ -223,7 +231,7 @@ where
     }
 
     async fn flush(&mut self) {
-        log::info!("flushing buffer (len: {})", self.buffer.len());
+        self.block_until_about_next_minute().await;
         let requests = self
             .hosts
             .iter()
@@ -231,7 +239,7 @@ where
                 (0..h.bulk_size())
                     .map(|_| {
                         self.buffer
-                            .drain(..self.config.num_host_requests as usize)
+                            .drain(..self.config.host_requests_per_min as usize)
                             .collect::<Vec<_>>()
                     })
                     .collect::<Vec<_>>()
@@ -264,7 +272,11 @@ where
                                 pair.network,
                                 e
                             );
-                            self.buffer.push(pair);
+                            match e {
+                                // pool doesn't exist (better ignore it for the day)
+                                shared::Error::UnexpectedStatusCode(404, _) => (),
+                                _ => self.buffer.push(pair),
+                            }
                         }
                         Ok(resp) => {
                             if let Some(analysis) = resp.analyze() {
@@ -272,7 +284,7 @@ where
                                     .notifier
                                     .get(&pair.network)
                                     .expect("missing notifier")
-                                    .post_analysis(pair.token.as_ref(), analysis)
+                                    .post_analysis(&pair, analysis)
                                     .await
                                 {
                                     log::error!("failed to post analysis: {}", e);
@@ -283,5 +295,14 @@ where
                 }
             }
         }
+    }
+
+    async fn block_until_about_next_minute(&mut self) {
+        let elapsed = self.current.elapsed();
+        if elapsed < ONE_MIN_FIVE_SECS {
+            log::info!("blocking until next minute");
+            async_std::task::sleep(ONE_MIN_FIVE_SECS - elapsed).await;
+        }
+        self.current = Instant::now();
     }
 }

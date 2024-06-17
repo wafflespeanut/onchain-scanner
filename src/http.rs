@@ -38,7 +38,7 @@ impl Handler {
         State(state): State<Storage>,
     ) -> Result<String, StatusCode> {
         if let Some(addr) = params.get("addr") {
-            if let Err(e) = state.block_address(addr).await {
+            if let Err(e) = state.block_address(addr) {
                 log::error!("failed to block address: {}", e);
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
@@ -54,7 +54,7 @@ impl Handler {
         State(state): State<Storage>,
     ) -> Result<String, StatusCode> {
         if let Some(addr) = params.get("addr") {
-            if let Err(e) = state.unblock_address(addr).await {
+            if let Err(e) = state.unblock_address(addr) {
                 log::error!("failed to unblock address: {}", e);
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }

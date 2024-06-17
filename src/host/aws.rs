@@ -1,6 +1,10 @@
 use super::Host;
 use aws_credential_types::Credentials;
-use aws_sdk_lambda::{config::Region, primitives::Blob, Client, Config};
+use aws_sdk_lambda::{
+    config::{Region, StalledStreamProtectionConfig},
+    primitives::Blob,
+    Client, Config,
+};
 use futures::future;
 use serde::de::DeserializeOwned;
 
@@ -9,7 +13,7 @@ use std::env;
 #[derive(Default)]
 pub struct AwsLambda {
     name: String,
-    clients: Vec<Client>,
+    clients: Vec<(Client, String)>,
 }
 
 impl AwsLambda {
@@ -29,8 +33,9 @@ impl AwsLambda {
             let config = Config::builder()
                 .credentials_provider(creds.clone())
                 .region(Region::new(r))
+                .stalled_stream_protection(StalledStreamProtectionConfig::disabled())
                 .build();
-            clients.push(Client::from_conf(config));
+            clients.push((Client::from_conf(config), r.into()));
         }
         Ok(AwsLambda {
             name: name.into(),
@@ -53,14 +58,17 @@ where
         request: Vec<Vec<shared::Request>>,
     ) -> Vec<shared::Result<Vec<shared::Response>>> {
         future::join_all(self.clients.iter().zip(request.into_iter()).map(
-            |(client, req)| async move {
+            |((client, region), req)| async move {
                 let res = client
                     .invoke()
                     .function_name(&self.name)
                     .payload(Blob::new(serde_json::to_vec(&req)?))
                     .send()
                     .await
-                    .map_err(|e| shared::Error::AwsSdk(e.into()))?;
+                    .map_err(|e| {
+                        log::warn!("failed to invoke client in region {}: {:?}", region, e);
+                        shared::Error::AwsSdk(e.into())
+                    })?;
                 if res.payload.is_none() {
                     return Err(shared::Error::NoPayload);
                 }

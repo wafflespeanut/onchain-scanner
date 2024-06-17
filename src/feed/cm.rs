@@ -65,8 +65,8 @@ impl super::Feed for CoinMarketCap {
 
     fn modify(req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         req.header("Host", "api.coinmarketcap.com")
-           .header("Origin", "https://coinmarketcap.com")
-           .header("Referer", "https://coinmarketcap.com/")
+            .header("Origin", "https://coinmarketcap.com")
+            .header("Referer", "https://coinmarketcap.com/")
     }
 
     fn url(network: super::Network, page: u16) -> String {
