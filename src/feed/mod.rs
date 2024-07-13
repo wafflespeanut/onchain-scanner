@@ -24,14 +24,14 @@ pub enum Network {
     // serialized as geckoterminal's network names
     #[strum(serialize = "solana")]
     Solana,
-    #[strum(serialize = "eth")]
-    Ethereum,
     #[strum(serialize = "base")]
     Base,
-    #[strum(serialize = "blast")]
-    Blast,
     #[strum(serialize = "ton")]
     TON,
+    #[strum(serialize = "eth")]
+    Ethereum,
+    #[strum(serialize = "blast")]
+    Blast,
     #[strum(serialize = "bsc")]
     BSC,
     #[strum(serialize = "arbitrum")]

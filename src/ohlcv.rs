@@ -155,9 +155,8 @@ impl OHLCVList {
                     _ => (),
                 }
                 match last_red {
-                    Some((j, old_ohlcv)) if ohlcv.close > old_ohlcv.open => {
-                        last_green = Some((i, ohlcv));
-                        if direction != Direction::Up {
+                    Some((j, old_ohlcv)) if ohlcv.close > old_ohlcv.open && direction != Direction::Up => {
+                            last_green = Some((i, ohlcv));
                             direction = Direction::Up;
                             analysis.bearish_engulfing.last_mut().map(|e| {
                                 if e.count_before_opp == 0 {
@@ -180,22 +179,20 @@ impl OHLCVList {
                                 percent_before_opp: 0.,
                                 rr_prev_day_stop_until_opp: 0.,
                             });
-                        }
                     }
                     _ => (),
                 }
             } else {
                 match last_red {
-                    Some((_, old_ohlcv)) if ohlcv.close < old_ohlcv.open => {
+                    Some((_, old_ohlcv)) if ohlcv.close < old_ohlcv.close => {
                         last_red = Some((i, ohlcv));
                     }
                     None => last_red = Some((i, ohlcv)),
                     _ => (),
                 }
                 match last_green {
-                    Some((j, old_ohlcv)) if ohlcv.close < old_ohlcv.open => {
-                        last_red = Some((i, ohlcv));
-                        if direction != Direction::Down {
+                    Some((j, old_ohlcv)) if ohlcv.close < old_ohlcv.open && direction != Direction::Down => {
+                            last_red = Some((i, ohlcv));
                             direction = Direction::Down;
                             analysis.bullish_engulfing.last_mut().map(|e| {
                                 if e.count_before_opp == 0 {
@@ -218,7 +215,6 @@ impl OHLCVList {
                                 percent_before_opp: 0.,
                                 rr_prev_day_stop_until_opp: 0.,
                             });
-                        }
                     }
                     _ => (),
                 }
@@ -294,11 +290,11 @@ mod tests {
                 "percent_before_opp": -0.2857376475275747,
                 "rr_prev_day_stop_until_opp": -0.7567104653122901,
             }, {
-                "idx": 25,
-                "num_engulfing": 1,
-                "count_before_opp": 14,
-                "percent_before_opp": 2.26766337631794,
-                "rr_prev_day_stop_until_opp": 5.120278630076719,
+                "idx": 27,
+                "num_engulfing": 5,
+                "count_before_opp": 12,
+                "percent_before_opp": 1.722960881214286,
+                "rr_prev_day_stop_until_opp": 3.810348509608112,
             }, {
                 "idx": 42,
                 "num_engulfing": 1,
@@ -340,9 +336,9 @@ mod tests {
             }, {
                 "idx": 18,
                 "num_engulfing": 1,
-                "count_before_opp": 7,
-                "percent_before_opp": 0.30093405333485823,
-                "rr_prev_day_stop_until_opp": 0.5969716820720963,
+                "count_before_opp": 9,
+                "percent_before_opp": 0.1610925418326096,
+                "rr_prev_day_stop_until_opp": 0.31956398620023857,
             }, {
                 "idx": 39,
                 "num_engulfing": 2,
