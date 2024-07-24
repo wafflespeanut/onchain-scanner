@@ -279,16 +279,14 @@ where
                             }
                         }
                         Ok(resp) => {
-                            if let Some(analysis) = resp.analyze() {
-                                if let Err(e) = self
-                                    .notifier
-                                    .get(&pair.network)
-                                    .expect("missing notifier")
-                                    .post_analysis(&pair, analysis)
-                                    .await
-                                {
-                                    log::error!("failed to post analysis: {}", e);
-                                }
+                            if let Err(e) = self
+                                .notifier
+                                .get(&pair.network)
+                                .expect("missing notifier")
+                                .post_analysis(&pair, resp)
+                                .await
+                            {
+                                log::error!("failed to post analysis: {}", e);
                             }
                         }
                     }

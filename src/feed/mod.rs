@@ -28,24 +28,24 @@ pub enum Network {
     Base,
     #[strum(serialize = "ton")]
     TON,
-    #[strum(serialize = "eth")]
-    Ethereum,
-    #[strum(serialize = "blast")]
-    Blast,
+    // #[strum(serialize = "eth")]
+    // Ethereum,
+    // #[strum(serialize = "blast")]
+    // Blast,
     #[strum(serialize = "bsc")]
     BSC,
     #[strum(serialize = "arbitrum")]
     Arbitrum,
-    #[strum(serialize = "avax")]
-    Avalanche,
-    #[strum(serialize = "optimism")]
-    Optimism,
-    #[strum(serialize = "ftm")]
-    Fantom,
-    #[strum(serialize = "metis")]
-    Metis,
-    #[strum(serialize = "ronin")]
-    Ronin,
+    // #[strum(serialize = "avax")]
+    // Avalanche,
+    // #[strum(serialize = "optimism")]
+    // Optimism,
+    // #[strum(serialize = "ftm")]
+    // Fantom,
+    // #[strum(serialize = "metis")]
+    // Metis,
+    // #[strum(serialize = "ronin")]
+    // Ronin,
 }
 
 pub struct Pair {

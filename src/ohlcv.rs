@@ -1,5 +1,7 @@
-use chrono::{offset::Utc, DateTime};
+use chrono::{offset::Utc, DateTime, Datelike};
 use serde::Serialize;
+
+use std::ops::AddAssign;
 
 #[derive(Default, Debug, Clone, Serialize)]
 pub struct OHLCV {
@@ -11,7 +13,24 @@ pub struct OHLCV {
     pub volume: f64,
 }
 
-#[derive(Debug)]
+impl AddAssign<OHLCV> for OHLCV {
+    fn add_assign(&mut self, other: OHLCV) {
+        self.high = if self.high > other.high {
+            self.high
+        } else {
+            other.high
+        };
+        self.low = if self.low < other.low {
+            self.low
+        } else {
+            other.low
+        };
+        self.close = other.close;
+        self.volume += other.volume;
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct OHLCVList(Vec<OHLCV>);
 
 impl std::ops::Deref for OHLCVList {
@@ -103,21 +122,53 @@ enum Direction {
 
 impl OHLCVList {
     #[allow(deprecated)]
-    pub fn analyze(mut self) -> Option<Analysis> {
+    fn cleanup(&mut self) {
         self.0.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
         let today = Utc::now().date();
         match self.last().map(|d| d.timestamp.date()) {
             Some(d) if d == today => {
                 self.0.pop();
-            },
+            }
             _ => (),
         }
+    }
 
+    pub fn three_day(&mut self) -> OHLCVList {
+        self.cleanup();
+        let mut vec = Vec::with_capacity(self.0.len());
+        let mut current: Option<OHLCV> = None;
+        let mut count = 0;
+        for ohlcv in &self.0 {
+            let i = ohlcv.timestamp.ordinal();
+            if i % 3 == 1 {
+                count = 0;
+                if let Some(c) = current.take() {
+                    vec.push(c);
+                }
+            }
+            count += 1;
+            if let Some(ref mut c) = current {
+                *c += ohlcv.clone();
+            } else {
+                current = Some(ohlcv.clone());
+            }
+        }
+        if count == 3 {
+            if let Some(c) = current {
+                vec.push(c);
+            }
+        }
+        OHLCVList(vec)
+    }
+
+    pub fn analyze(mut self) -> Option<Analysis> {
+        self.cleanup();
         let mut analysis = Analysis::default();
         if self.len() < 2 {
             return None;
         }
         let mut prev_high = self[0].high;
+        println!("prev_high: {}", prev_high);
         let mut prev_low = self[0].low;
         let mut last_green: Option<(usize, &OHLCV)> = None;
         let mut last_red: Option<(usize, &OHLCV)> = None;
@@ -155,30 +206,30 @@ impl OHLCVList {
                     _ => (),
                 }
                 match last_red {
-                    Some((j, old_ohlcv)) if ohlcv.close > old_ohlcv.open && direction != Direction::Up => {
-                            last_green = Some((i, ohlcv));
-                            direction = Direction::Up;
-                            analysis.bearish_engulfing.last_mut().map(|e| {
-                                if e.count_before_opp == 0 {
-                                    e.count_before_opp = i as u8 - e.idx as u8;
-                                    e.percent_before_opp = -(self[i].close - self[e.idx].close)
-                                        as f64
-                                        / self[e.idx].close as f64;
-                                    e.rr_prev_day_stop_until_opp = (self[i].close
-                                        - self[e.idx].close)
-                                        / (self[e.idx].close - self[e.idx].high);
-                                    if (e.idx + 1..i + 1).any(|k| self[k].high > self[e.idx].high) {
-                                        e.rr_prev_day_stop_until_opp = -1.;
-                                    }
+                    Some((j, old_ohlcv))
+                        if ohlcv.close > old_ohlcv.open && direction != Direction::Up =>
+                    {
+                        last_green = Some((i, ohlcv));
+                        direction = Direction::Up;
+                        analysis.bearish_engulfing.last_mut().map(|e| {
+                            if e.count_before_opp == 0 {
+                                e.count_before_opp = i as u8 - e.idx as u8;
+                                e.percent_before_opp = -(self[i].close - self[e.idx].close) as f64
+                                    / self[e.idx].close as f64;
+                                e.rr_prev_day_stop_until_opp = (self[i].close - self[e.idx].close)
+                                    / (self[e.idx].close - self[e.idx].high);
+                                if (e.idx + 1..i + 1).any(|k| self[k].high > self[e.idx].high) {
+                                    e.rr_prev_day_stop_until_opp = -1.;
                                 }
-                            });
-                            analysis.bullish_engulfing.push(Engulfing {
-                                idx: i,
-                                num_engulfing: (i - j) as u8,
-                                count_before_opp: 0,
-                                percent_before_opp: 0.,
-                                rr_prev_day_stop_until_opp: 0.,
-                            });
+                            }
+                        });
+                        analysis.bullish_engulfing.push(Engulfing {
+                            idx: i,
+                            num_engulfing: (i - j) as u8,
+                            count_before_opp: 0,
+                            percent_before_opp: 0.,
+                            rr_prev_day_stop_until_opp: 0.,
+                        });
                     }
                     _ => (),
                 }
@@ -191,30 +242,30 @@ impl OHLCVList {
                     _ => (),
                 }
                 match last_green {
-                    Some((j, old_ohlcv)) if ohlcv.close < old_ohlcv.open && direction != Direction::Down => {
-                            last_red = Some((i, ohlcv));
-                            direction = Direction::Down;
-                            analysis.bullish_engulfing.last_mut().map(|e| {
-                                if e.count_before_opp == 0 {
-                                    e.count_before_opp = i as u8 - e.idx as u8;
-                                    e.percent_before_opp = (self[i].close - self[e.idx].close)
-                                        as f64
-                                        / self[e.idx].close as f64;
-                                    e.rr_prev_day_stop_until_opp = (self[i].close
-                                        - self[e.idx].close)
-                                        / (self[e.idx].close - self[e.idx].low);
-                                    if (e.idx + 1..i + 1).any(|k| self[k].low < self[e.idx].low) {
-                                        e.rr_prev_day_stop_until_opp = -1.;
-                                    }
+                    Some((j, old_ohlcv))
+                        if ohlcv.close < old_ohlcv.open && direction != Direction::Down =>
+                    {
+                        last_red = Some((i, ohlcv));
+                        direction = Direction::Down;
+                        analysis.bullish_engulfing.last_mut().map(|e| {
+                            if e.count_before_opp == 0 {
+                                e.count_before_opp = i as u8 - e.idx as u8;
+                                e.percent_before_opp = (self[i].close - self[e.idx].close) as f64
+                                    / self[e.idx].close as f64;
+                                e.rr_prev_day_stop_until_opp = (self[i].close - self[e.idx].close)
+                                    / (self[e.idx].close - self[e.idx].low);
+                                if (e.idx + 1..i + 1).any(|k| self[k].low < self[e.idx].low) {
+                                    e.rr_prev_day_stop_until_opp = -1.;
                                 }
-                            });
-                            analysis.bearish_engulfing.push(Engulfing {
-                                idx: i,
-                                num_engulfing: (i - j) as u8,
-                                count_before_opp: 0,
-                                percent_before_opp: 0.,
-                                rr_prev_day_stop_until_opp: 0.,
-                            });
+                            }
+                        });
+                        analysis.bearish_engulfing.push(Engulfing {
+                            idx: i,
+                            num_engulfing: (i - j) as u8,
+                            count_before_opp: 0,
+                            percent_before_opp: 0.,
+                            rr_prev_day_stop_until_opp: 0.,
+                        });
                     }
                     _ => (),
                 }
@@ -236,6 +287,53 @@ mod tests {
     use crate::provider::{GeckoTerminal, Provider};
     use chrono::offset::Utc;
     use serde_json::json;
+
+    #[test]
+    fn test_3_day() {
+        let data: GeckoTerminal = serde_json::from_value(json!({"data":{"id":"3f8f040c-4ffe-49b2-8115-c28163d7213f","type":"ohlcv_request_response","attributes":{"ohlcv_list":[[1721779200,0.174065295870174,0.19720785396299195,0.17056376774310208,0.19074199856070173,1223942.0237503191],[1721692800,0.182971707024862,0.196954983294436,0.147477361166894,0.174065295870174,4886298.65272743],[1721606400,0.208543019123211,0.212376317851481,0.171101013359341,0.182971707024862,3279630.75898638],[1721520000,0.202325838773766,0.240425208750454,0.182456987419855,0.208543019123211,4578001.52329729],[1721433600,0.173371219261919,0.206828410878561,0.156480645330405,0.202325838773766,3342689.13679987],[1721347200,0.141273346264967,0.198221075860895,0.132352855378717,0.173371219261919,5577773.68032061],[1721260800,0.121526650158645,0.159709648175942,0.111188598874564,0.141273346264967,5487632.14000255],[1721174400,0.150305962411679,0.165646748104518,0.114886771897152,0.121526650158645,5427201.95126694],[1721088000,0.167029153052713,0.179264845027969,0.138274936662666,0.150305962411679,6139434.44247738],[1721001600,0.127115079983532,0.18819939898442,0.127115079983532,0.167029153052713,10211219.6794952],[1720915200,0.109812869045379,0.132437097529119,0.0946091058020234,0.127115079983532,11027825.6021092],[1720828800,0.119848544174034,0.13668991244563,0.108492398029391,0.109812869045379,6403839.809215],[1720742400,0.111827841516309,0.127037183206474,0.0915526708218714,0.119848544174034,13565966.573717],[1720656000,0.15630439102821,0.157825237858825,0.103299381970432,0.111827841516309,13411127.5526048],[1720569600,0.162601727222924,0.188544265513059,0.138254679098733,0.15630439102821,9760472.47361669],[1720483200,0.179224223776757,0.199389591629683,0.15563162822676,0.162601727222924,13766814.7721221],[1720396800,0.12122508097313,0.18690164286103,0.10306014974305,0.179224223776757,20173693.2856053],[1720310400,0.148874323502116,0.174416347945419,0.112618139426551,0.12122508097313,16878588.499564],[1720224000,0.166852657758533,0.208661687327075,0.135736818576065,0.148874323502116,19285873.2700889],[1720137600,0.102374774367047,0.182113374384497,0.0888900680886099,0.166852657758533,25054052.9581787],[1720051200,0.142625895018037,0.153365190169983,0.0951562322411729,0.102374774367047,23376220.4021115],[1719964800,0.112250212968411,0.159416939196456,0.0780031047010763,0.142625895018037,25886487.7791232],[1719878400,0.0840265665339986,0.132818011674813,0.0828711919652989,0.112250212968411,26765981.8561581],[1719792000,0.0739530997148289,0.0910176456295878,0.053559151891078,0.0840265665339986,11072336.599423],[1719705600,0.0777152993765498,0.0836905861342184,0.0622797038035311,0.0739530997148289,7610721.36395432],[1719619200,0.0680100035736386,0.0900148773760162,0.0532434234954781,0.0777152993765498,14553015.8541515],[1719532800,0.0441008781748526,0.0702222127740757,0.034232380026201,0.0680100035736386,13492913.9048899],[1719446400,0.0281668126428271,0.0490653925248158,0.0249888962093602,0.0441008781748526,11988610.2492201],[1719360000,0.0347736667853771,0.0378069970480434,0.0247628718497687,0.0281668126428271,9646729.54578132],[1719273600,0.0423499356469875,0.046057942035364,0.0319210993514008,0.0347736667853771,8157242.27337592],[1719187200,0.0313359114406856,0.0466621698191924,0.0226911335146811,0.0423499356469875,13709941.8119527],[1719100800,0.0452275401738972,0.0461466190157607,0.0263943426163712,0.0313359114406856,12894089.9088788],[1719014400,0.06378733011868,0.0704836838095306,0.0349977996023507,0.0452275401738972,13536313.5266842],[1718928000,0.0349348253911052,0.0682741650663621,0.0349348253911052,0.06378733011868,21552464.1611574],[1718841600,0.0588423950232453,0.1262975715129,0.029803970602445,0.0349348253911052,36725117.1249979],[1718755200,0.0566588360801765,0.0848922234193299,0.0433579366640179,0.0588423950232453,36501919.1667204],[1718668800,0.0413181753016237,0.0585904238721243,0.017332982346811,0.0566588360801765,47956325.840515],[1718582400,5.59737083264045e-05,0.139150983915709,1.13877394580797e-05,0.0413181753016237,102095824.397708]]}},"meta":{"base":{"address":"3B5wuUrMEi5yATD7on46hKfej3pfmd7t1RKgrsN3pump","name":"BILLY","symbol":"BILLY","coingecko_coin_id":"billy"},"quote":{"address":"So11111111111111111111111111111111111111112","name":"Wrapped SOL","symbol":"SOL","coingecko_coin_id":"wrapped-solana"}}})).unwrap();
+        let mut ohlcv = data.ohlcv_data().expect("unwrapping ohlcv");
+        ohlcv.0[0].timestamp = Utc::now();
+        let ohlcv3 = ohlcv.three_day();
+        assert_eq!(
+            json!(ohlcv3[ohlcv3.len() - 1]),
+            json!({
+                "timestamp": "2024-07-20T00:00:00Z",
+                "open": ohlcv[ohlcv.len()-4].open,
+                "high": ohlcv[ohlcv.len()-3].high,
+                "low": ohlcv[ohlcv.len()-4].low,
+                "close": ohlcv[ohlcv.len()-2].close,
+                "volume": ohlcv[ohlcv.len()-4..ohlcv.len()-1].iter().map(|o| o.volume).sum::<f64>(),
+            }),
+        );
+        assert_eq!(ohlcv3.len(), 12);
+        let result = ohlcv3.analyze().expect("analysis");
+        assert_eq!(
+            serde_json::to_value(&result.bullish_engulfing).unwrap(),
+            json!([{
+                "idx": 3,
+                "num_engulfing": 1,
+                "count_before_opp": 5,
+                "percent_before_opp": 0.6146575985175163,
+                "rr_prev_day_stop_until_opp": 0.966604345893942,
+            }, {
+                "idx": 10,
+                "num_engulfing": 2,
+                "count_before_opp": 0,
+                "percent_before_opp": 0.,
+                "rr_prev_day_stop_until_opp": 0.,
+            }]),
+        );
+        assert_eq!(
+            serde_json::to_value(&result.bearish_engulfing).unwrap(),
+            json!([{
+                "idx": 8,
+                "num_engulfing": 1,
+                "count_before_opp": 2,
+                "percent_before_opp": -0.5787878121122142,
+                "rr_prev_day_stop_until_opp": -1.,
+            }]),
+        );
+    }
 
     #[test]
     fn test_analyze() {

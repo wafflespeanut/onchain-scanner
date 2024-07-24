@@ -1,4 +1,5 @@
-use super::ohlcv::Analysis;
+use super::ohlcv::OHLCVList;
+use chrono::{offset::Utc, Datelike};
 
 mod discord;
 
@@ -8,11 +9,7 @@ pub use self::discord::BufferedDiscordWebhook;
 pub trait Notifier {
     async fn notify(&self, msg: &str) -> shared::Result<()>;
 
-    async fn post_analysis(
-        &self,
-        pair: &shared::Request,
-        analysis: Analysis,
-    ) -> shared::Result<()> {
+    async fn post_analysis(&self, pair: &shared::Request, ohlcv: OHLCVList) -> shared::Result<()> {
         let mut msg = String::new();
         msg.push_str("### ");
         msg.push_str(
@@ -27,24 +24,41 @@ pub trait Notifier {
         msg.push_str("\n");
 
         let mut yday_data = String::new();
-        if let Some(yday) = analysis.last_day_data() {
-            if let Some(b) = yday.range_high_break {
-                yday_data.push_str(&format!("\nRange high {} broken", b.prev_bound));
+        let is_first_three_day_open = Utc::now().ordinal() % 3 == 1;
+        match ohlcv.clone().three_day().analyze() {
+            Some(analysis) if is_first_three_day_open => {
+                match analysis.bullish_engulfing.last() {
+                    Some(b) if b.idx == analysis.ohlcv.len() - 1 => {
+                        yday_data.push_str(&format!(
+                            "\n3D Bullish engulfing ({} candles) at {}",
+                            b.num_engulfing,
+                            analysis.ohlcv.last().unwrap().close,
+                        ));
+                    }
+                    _ => (),
+                }
+                match analysis.bearish_engulfing.last() {
+                    Some(b) if b.idx == analysis.ohlcv.len() - 1 => {
+                        yday_data.push_str(&format!(
+                            "\n3D Bearish engulfing ({} candles) at {}",
+                            b.num_engulfing,
+                            analysis.ohlcv.last().unwrap().close,
+                        ));
+                    }
+                    _ => (),
+                }
             }
-            if let Some(b) = yday.range_low_break {
-                yday_data.push_str(&format!("\nRange low {} broken", b.prev_bound));
-            }
-            if let Some(b) = yday.bullish_engulfing {
-                yday_data.push_str(&format!(
-                    "\nBullish engulfing ({} candles) at {}",
-                    b.num_engulfing, yday.ohlcv.close
-                ));
-            }
-            if let Some(b) = yday.bearish_engulfing {
-                yday_data.push_str(&format!(
-                    "\nBearish engulfing ({} candles) at {}",
-                    b.num_engulfing, yday.ohlcv.close
-                ));
+            _ => (),
+        }
+
+        if let Some(analysis) = ohlcv.analyze() {
+            if let Some(yday) = analysis.last_day_data() {
+                if let Some(b) = yday.range_high_break {
+                    yday_data.push_str(&format!("\nRange high {} broken", b.prev_bound));
+                }
+                if let Some(b) = yday.range_low_break {
+                    yday_data.push_str(&format!("\nRange low {} broken", b.prev_bound));
+                }
             }
         }
 
