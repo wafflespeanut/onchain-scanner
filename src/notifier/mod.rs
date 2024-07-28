@@ -1,9 +1,15 @@
 use super::ohlcv::OHLCVList;
 use chrono::{offset::Utc, Datelike};
 
+use std::env;
+
 mod discord;
 
 pub use self::discord::BufferedDiscordWebhook;
+
+lazy_static::lazy_static!{
+    static ref THREE_DAY: bool = env::var("DAY3").is_ok();
+}
 
 #[async_trait::async_trait]
 pub trait Notifier {
@@ -24,7 +30,7 @@ pub trait Notifier {
         msg.push_str("\n");
 
         let mut yday_data = String::new();
-        let is_first_three_day_open = Utc::now().ordinal() % 3 == 1;
+        let is_first_three_day_open = Utc::now().ordinal() % 3 == 1 || *THREE_DAY;
         match ohlcv.clone().three_day().analyze() {
             Some(analysis) if is_first_three_day_open => {
                 match analysis.bullish_engulfing.last() {
@@ -71,5 +77,10 @@ pub trait Notifier {
         msg.push_str("\n```");
 
         self.notify(&msg).await
+    }
+
+    async fn flush(&self) -> shared::Result<()> {
+        log::debug!("flushing buffer");
+        self.notify("").await
     }
 }

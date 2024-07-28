@@ -168,7 +168,6 @@ impl OHLCVList {
             return None;
         }
         let mut prev_high = self[0].high;
-        println!("prev_high: {}", prev_high);
         let mut prev_low = self[0].low;
         let mut last_green: Option<(usize, &OHLCV)> = None;
         let mut last_red: Option<(usize, &OHLCV)> = None;

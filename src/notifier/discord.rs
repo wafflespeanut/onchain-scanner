@@ -4,6 +4,7 @@ use serde_json::json;
 use std::time::{Duration, Instant};
 
 const MAX_CHARS: usize = 1990;
+const CODE_BLOCK: &str = "```";
 
 pub struct BufferedDiscordWebhook {
     client: reqwest::Client,
@@ -36,8 +37,10 @@ impl super::Notifier for BufferedDiscordWebhook {
     async fn notify(&self, msg: &str) -> shared::Result<()> {
         let msg = {
             let mut g = self.buffer.lock().await;
-            g.msg.push_str(&msg);
-            g.msg.push('\n');
+            if !msg.trim().is_empty() {
+                g.msg.push_str(&msg);
+                g.msg.push('\n');
+            }
             if g.msg.len() < MAX_CHARS || g.current.elapsed() < g.reset {
                 log::debug!("buffering message until char limit");
                 return Ok(());
@@ -45,23 +48,19 @@ impl super::Notifier for BufferedDiscordWebhook {
 
             let mut m = String::with_capacity(MAX_CHARS);
             let mut extra = String::new();
-            let mut inside_code = false;
             for line in g.msg.split('\n') {
                 let line = line.trim();
                 if !extra.is_empty() || m.len() + line.len() > MAX_CHARS {
-                    if inside_code && extra.is_empty() {
-                        m.push_str("```");
-                        extra.push_str("```");
-                    }
                     extra.push_str(line);
                     extra.push('\n');
                     continue;
                 }
                 m.push_str(line);
                 m.push('\n');
-                if line.contains("```") {
-                    inside_code = !inside_code;
-                }
+            }
+            if m.match_indices(CODE_BLOCK).count() % 2 == 1 {
+                m.push_str(CODE_BLOCK);
+                m.push('\n');
             }
             g.msg = extra;
             m
@@ -97,6 +96,7 @@ impl super::Notifier for BufferedDiscordWebhook {
                 g.reset = reset.unwrap_or(Duration::from_secs(1));
                 g.msg = msg + "\n" + &g.msg;
             }
+            log::info!("remaining bytes in buffer: {}", g.msg.len());
         }
 
         if res.status().is_success() {
