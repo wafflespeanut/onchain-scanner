@@ -52,6 +52,7 @@ pub struct Pair {
     pub base_token: String,
     pub quote_token: String,
     pub contract_address: String,
+    pub liquidity: Option<f64>,
 }
 
 pub trait Feed {

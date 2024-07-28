@@ -20,6 +20,7 @@ impl Into<Vec<super::Pair>> for PaginatedData {
                     contract_address: x.attributes.address,
                     base_token: name.next().map(|s| s.trim().into()).unwrap_or_default(),
                     quote_token: name.next().map(|s| s.trim().into()).unwrap_or_default(),
+                    liquidity: x.attributes.fdv_usd.parse().ok(),
                 }
             })
             .collect()
@@ -35,6 +36,8 @@ pub struct TokenInfo {
 pub struct Attributes {
     name: String,
     address: String,
+    #[serde(default)]
+    fdv_usd: String,
 }
 
 impl super::Feed for GeckoTerminal {

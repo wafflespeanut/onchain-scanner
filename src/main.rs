@@ -38,6 +38,7 @@ async fn main() {
 
     let runner = Runner::new(c).expect("configuring runner");
     let storage = runner.storage.clone();
+    runner.spawn_cleanup();
     tokio::task::spawn(runner.run());
     _ = &*self::http::AUTH_KEY;
     Handler::serve(&env::var("ADDR").expect("address unset"), storage).await;

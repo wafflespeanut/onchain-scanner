@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use chrono::{offset::Utc, TimeDelta};
@@ -16,6 +17,9 @@ use super::{
 };
 
 const ONE_MIN_FIVE_SECS: Duration = Duration::from_secs(65);
+const fn default_min_liquidity() -> u64 {
+    5000
+}
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -33,6 +37,8 @@ pub struct Config {
     pub post_once: bool,
     #[serde(default)]
     pub post_now: bool,
+    #[serde(default = "default_min_liquidity")]
+    pub min_liquidity: u64,
 }
 
 pub struct Runner<P, N> {
@@ -40,7 +46,7 @@ pub struct Runner<P, N> {
     feeds: Vec<Box<dyn FeedClient + Send + Sync + 'static>>,
     hosts: Vec<Box<dyn Host<P> + Send + Sync + 'static>>,
     config: Config,
-    notifier: HashMap<String, N>,
+    notifier: HashMap<String, Arc<N>>,
     buffer: Vec<shared::Request>,
     pools: HashSet<String>,
     ended_feeds: Vec<bool>,
@@ -50,7 +56,10 @@ pub struct Runner<P, N> {
 impl Runner<super::provider::GeckoTerminal, super::notifier::BufferedDiscordWebhook> {
     pub fn new(c: Config) -> shared::Result<Self> {
         Ok(Runner {
-            feeds: vec![Box::new(super::feed::CoinMarketCap::default())],
+            feeds: vec![
+                Box::new(super::feed::CoinMarketCap::default()) as Box<_>,
+                Box::new(super::feed::GeckoTerminal::default()) as Box<_>,
+            ],
             hosts: vec![Box::new(super::host::AwsLambda::new(&c.lambda_function)?)],
             storage: super::storage::Storage::new(&c.storage_path).expect("init storage"),
             notifier: Network::VARIANTS
@@ -62,7 +71,7 @@ impl Runner<super::provider::GeckoTerminal, super::notifier::BufferedDiscordWebh
                         .unwrap_or(&c.discord_url);
                     (
                         n.to_string(),
-                        super::notifier::BufferedDiscordWebhook::new(url.clone()),
+                        Arc::new(super::notifier::BufferedDiscordWebhook::new(url.clone())),
                     )
                 })
                 .collect(),
@@ -143,6 +152,21 @@ where
         }
     }
 
+    pub fn spawn_cleanup(&self) -> tokio::task::JoinHandle<()> {
+        let notifiers = self.notifier.clone();
+        tokio::task::spawn(async move {
+            loop {
+                for (name, notifier) in &notifiers {
+                    log::debug!("flushing notifier for {}", name);
+                    if let Err(e) = notifier.flush().await {
+                        log::error!("failed to flush notifier for {}: {}", name, e);
+                    }
+                }
+                async_std::task::sleep(Duration::from_secs(5)).await;
+            }
+        })
+    }
+
     #[allow(deprecated)]
     async fn block_until_midnight(&self) {
         let now = Utc::now();
@@ -204,6 +228,17 @@ where
                         continue;
                     }
                     Ok(false) => (),
+                }
+
+                if let Some(min) = pair.liquidity {
+                    if min < self.config.min_liquidity as f64 {
+                        log::info!(
+                            "skipping low liquidity pool: {} (USD: {})",
+                            pair.contract_address,
+                            min,
+                        );
+                        continue;
+                    }
                 }
 
                 if !self.pools.insert(pair.contract_address.clone()) {

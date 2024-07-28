@@ -7,7 +7,7 @@ mod discord;
 
 pub use self::discord::BufferedDiscordWebhook;
 
-lazy_static::lazy_static!{
+lazy_static::lazy_static! {
     static ref THREE_DAY: bool = env::var("DAY3").is_ok();
 }
 
@@ -25,9 +25,7 @@ pub trait Notifier {
                 .map(|(base, quote)| format!(" {}/{}", base, quote))
                 .unwrap_or_default(),
         );
-        msg.push_str("\n```\n");
-        msg.push_str(&pair.pool_address);
-        msg.push_str("\n");
+        msg.push_str(&format!("\n`{}`", pair.pool_address));
 
         let mut yday_data = String::new();
         let is_first_three_day_open = Utc::now().ordinal() % 3 == 1 || *THREE_DAY;
@@ -36,7 +34,7 @@ pub trait Notifier {
                 match analysis.bullish_engulfing.last() {
                     Some(b) if b.idx == analysis.ohlcv.len() - 1 => {
                         yday_data.push_str(&format!(
-                            "\n3D Bullish engulfing ({} candles) at {}",
+                            "\n`3D Bullish engulfing ({} candles) at {}`",
                             b.num_engulfing,
                             analysis.ohlcv.last().unwrap().close,
                         ));
@@ -46,7 +44,7 @@ pub trait Notifier {
                 match analysis.bearish_engulfing.last() {
                     Some(b) if b.idx == analysis.ohlcv.len() - 1 => {
                         yday_data.push_str(&format!(
-                            "\n3D Bearish engulfing ({} candles) at {}",
+                            "\n`3D Bearish engulfing ({} candles) at {}`",
                             b.num_engulfing,
                             analysis.ohlcv.last().unwrap().close,
                         ));
@@ -60,27 +58,26 @@ pub trait Notifier {
         if let Some(analysis) = ohlcv.analyze() {
             if let Some(yday) = analysis.last_day_data() {
                 if let Some(b) = yday.range_high_break {
-                    yday_data.push_str(&format!("\nRange high {} broken", b.prev_bound));
+                    yday_data.push_str(&format!("\n`Range high {} broken`", b.prev_bound));
                 }
                 if let Some(b) = yday.range_low_break {
-                    yday_data.push_str(&format!("\nRange low {} broken", b.prev_bound));
+                    yday_data.push_str(&format!("\n`Range low {} broken`", b.prev_bound));
                 }
             }
         }
 
         if yday_data.is_empty() {
-            log::warn!("empty data for pool {} {:?}", pair.pool_address, pair.token);
+            log::warn!("analysis insufficient for pool {} {:?}", pair.pool_address, pair.token);
             return Ok(());
         }
 
         msg.push_str(&yday_data);
-        msg.push_str("\n```");
+        msg.push('\n');
 
         self.notify(&msg).await
     }
 
     async fn flush(&self) -> shared::Result<()> {
-        log::debug!("flushing buffer");
         self.notify("").await
     }
 }
