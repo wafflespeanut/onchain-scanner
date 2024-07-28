@@ -57,7 +57,8 @@ impl Runner<super::provider::GeckoTerminal, super::notifier::BufferedDiscordWebh
         Ok(Runner {
             feeds: vec![
                 Box::new(super::feed::CoinMarketCap::default()) as Box<_>,
-                Box::new(super::feed::GeckoTerminal::default()) as Box<_>,
+                Box::new(super::feed::GeckoTerminalTop::default()) as Box<_>,
+                Box::new(super::feed::GeckoTerminalTrending::default()) as Box<_>,
             ],
             hosts: vec![Box::new(super::host::AwsLambda::new(&c.lambda_function)?)],
             storage: super::storage::Storage::new(&c.storage_path).expect("init storage"),

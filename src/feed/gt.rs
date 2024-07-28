@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use serde::Deserialize;
 
-pub struct GeckoTerminal;
+const DELAY: Duration = Duration::from_millis(4050);
+
+pub struct GeckoTerminalTop;
+pub struct GeckoTerminalTrending;
 
 #[derive(Deserialize)]
 pub struct PaginatedData {
@@ -40,16 +43,31 @@ pub struct Attributes {
     fdv_usd: String,
 }
 
-impl super::Feed for GeckoTerminal {
+impl super::Feed for GeckoTerminalTop {
     const MAX_PAGES: Option<u16> = Some(10);
 
-    const DELAY: Duration = Duration::from_millis(2050);
+    const DELAY: Duration = DELAY;
 
     type Response = PaginatedData;
 
     fn url(network: super::Network, page: u16) -> String {
         format!(
             "https://api.geckoterminal.com/api/v2/networks/{}/pools?page={}&sort=h24_tx_count_desc",
+            network, page
+        )
+    }
+}
+
+impl super::Feed for GeckoTerminalTrending {
+    const MAX_PAGES: Option<u16> = Some(10);
+
+    const DELAY: Duration = DELAY;
+
+    type Response = PaginatedData;
+
+    fn url(network: super::Network, page: u16) -> String {
+        format!(
+            "https://api.geckoterminal.com/api/v2/networks/{}/trending_pools?page={}",
             network, page
         )
     }

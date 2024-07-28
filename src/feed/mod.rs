@@ -17,7 +17,8 @@ pub trait FeedClient {
 }
 
 pub type CoinMarketCap = DefaultClient<self::cm::CoinMarketCap>;
-pub type GeckoTerminal = DefaultClient<self::gt::GeckoTerminal>;
+pub type GeckoTerminalTop = DefaultClient<self::gt::GeckoTerminalTop>;
+pub type GeckoTerminalTrending = DefaultClient<self::gt::GeckoTerminalTrending>;
 
 #[derive(Debug, Clone, Copy, strum_macros::Display, strum_macros::VariantArray)]
 pub enum Network {
