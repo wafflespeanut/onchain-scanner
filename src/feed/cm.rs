@@ -46,17 +46,17 @@ impl From<super::Network> for Network {
     fn from(network: super::Network) -> Self {
         match network {
             super::Network::Solana => Network(16),
-            // super::Network::Ethereum => Network(1),
+            super::Network::Ethereum => Network(1),
             super::Network::Base => Network(199),
-            // super::Network::Blast => Network(210),
+            super::Network::Blast => Network(210),
             super::Network::TON => Network(173),
             super::Network::BSC => Network(14),
             super::Network::Arbitrum => Network(51),
-            // super::Network::Avalanche => Network(28),
-            // super::Network::Optimism => Network(42),
-            // super::Network::Fantom => Network(24),
-            // super::Network::Metis => Network(99),
-            // super::Network::Ronin => Network(66),
+            super::Network::Avalanche => Network(28),
+            super::Network::Optimism => Network(42),
+            super::Network::Fantom => Network(24),
+            super::Network::Metis => Network(99),
+            super::Network::Ronin => Network(66),
         }
     }
 }

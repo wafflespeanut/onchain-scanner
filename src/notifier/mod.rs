@@ -67,7 +67,11 @@ pub trait Notifier {
         }
 
         if yday_data.is_empty() {
-            log::warn!("analysis insufficient for pool {} {:?}", pair.pool_address, pair.token);
+            log::warn!(
+                "analysis insufficient for pool {} {:?}",
+                pair.pool_address,
+                pair.token
+            );
             return Ok(());
         }
 

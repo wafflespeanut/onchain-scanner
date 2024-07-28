@@ -18,7 +18,7 @@ use super::{
 
 const ONE_MIN_FIVE_SECS: Duration = Duration::from_secs(65);
 const fn default_min_liquidity() -> u64 {
-    5000
+    1000
 }
 
 #[derive(Deserialize)]
@@ -30,7 +30,6 @@ pub struct Config {
     #[serde(default)]
     pub max_attempts_per_pair: Option<u16>,
     pub host_requests_per_min: u8,
-    pub discord_url: String,
     #[serde(default)]
     pub discord_url_network: HashMap<String, String>,
     #[serde(default)]
@@ -64,15 +63,12 @@ impl Runner<super::provider::GeckoTerminal, super::notifier::BufferedDiscordWebh
             storage: super::storage::Storage::new(&c.storage_path).expect("init storage"),
             notifier: Network::VARIANTS
                 .iter()
-                .map(|n| {
-                    let url = c
-                        .discord_url_network
-                        .get(&n.to_string())
-                        .unwrap_or(&c.discord_url);
-                    (
+                .filter_map(|n| {
+                    let url = c.discord_url_network.get(&n.to_string())?;
+                    Some((
                         n.to_string(),
                         Arc::new(super::notifier::BufferedDiscordWebhook::new(url.clone())),
-                    )
+                    ))
                 })
                 .collect(),
             buffer: Vec::with_capacity(c.host_requests_per_min as usize),
@@ -100,8 +96,24 @@ where
 
         let batch_len = self.config.host_requests_per_min as usize
             * self.hosts.iter().map(|h| h.bulk_size()).sum::<usize>();
+        let networks = self
+            .notifier
+            .keys()
+            .filter_map(|s| {
+                Network::VARIANTS
+                    .iter()
+                    .find(|n| n.to_string() == s.as_str())
+                    .cloned()
+            })
+            .collect::<Vec<_>>();
+        if networks.is_empty() {
+            log::error!("no networks enabled, exiting runner...");
+            return;
+        }
+        log::info!("enabled networks: {:?}", networks);
+
         loop {
-            if current_network_idx == Network::VARIANTS.len() {
+            if current_network_idx == networks.len() {
                 posted_once = true;
                 current_network_idx = 0;
             }
@@ -116,7 +128,7 @@ where
                 posted_once = false;
             }
 
-            let network = Network::VARIANTS[current_network_idx];
+            let network = networks[current_network_idx];
             match self.populate_pairs(network, current_page).await {
                 Ok(true) => (),
                 Ok(false) => {

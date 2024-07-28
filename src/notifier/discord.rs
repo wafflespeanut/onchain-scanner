@@ -41,7 +41,9 @@ impl super::Notifier for BufferedDiscordWebhook {
             g.msg.push('\n');
         }
         log::debug!("current buffer len: {}", g.msg.len());
-        if (g.msg.len() < MAX_CHARS || g.current.elapsed() < g.reset) && g.current.elapsed() < Duration::from_secs(5) {
+        if (g.msg.len() < MAX_CHARS || g.current.elapsed() < g.reset)
+            && g.current.elapsed() < Duration::from_secs(5)
+        {
             log::debug!("buffering message until char limit");
             return Ok(());
         }
