@@ -25,7 +25,14 @@ pub trait Notifier {
                 .map(|(base, quote)| format!(" {}/{}", base, quote))
                 .unwrap_or_default(),
         );
+        if pair.maybe_duplicate {
+            msg.push_str(" (dup)");
+        }
         msg.push_str(&format!("\n`{}`", pair.pool_address));
+        if let Some(s) = get_links(&pair.network, &pair.pool_address) {
+            msg.push(' ');
+            msg.push_str(&s);
+        }
 
         let mut yday_data = String::new();
         let is_first_three_day_open = Utc::now().ordinal() % 3 == 1 || *THREE_DAY;
@@ -83,5 +90,26 @@ pub trait Notifier {
 
     async fn flush(&self) -> shared::Result<()> {
         self.notify("").await
+    }
+}
+
+fn get_links(network: &str, pool_address: &str) -> Option<String> {
+    let mut s = String::new();
+    if network == "solana" {
+        s.push_str("[ds](");
+        s.push_str(&format!(
+            "https://dexscreener.com/solana/{})",
+            pool_address.to_lowercase()
+        ));
+        s.push_str(" [ph](");
+        s.push_str(&format!(
+            "https://photon-sol.tinyastro.io/en/lp/{})",
+            pool_address
+        ));
+    }
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
     }
 }

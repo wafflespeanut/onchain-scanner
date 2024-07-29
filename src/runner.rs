@@ -49,6 +49,7 @@ pub struct Runner<P, N> {
     buffer: Vec<shared::Request>,
     pools: HashSet<String>,
     ended_feeds: Vec<bool>,
+    pairs: HashSet<String>,
     current: Instant,
 }
 
@@ -75,6 +76,7 @@ impl Runner<super::provider::GeckoTerminal, super::notifier::BufferedDiscordWebh
             buffer: Vec::with_capacity(c.host_requests_per_min as usize),
             config: c,
             pools: HashSet::with_capacity(1000),
+            pairs: HashSet::with_capacity(1000),
             ended_feeds: vec![],
             // add 1-min so that it doesn't block on first attempt
             current: Instant::now()
@@ -160,6 +162,7 @@ where
                     log::info!("reached max pages for network: {}", network);
                     current_page = 1;
                     current_network_idx += 1;
+                    self.pairs.clear();
                 }
             }
         }
@@ -262,6 +265,8 @@ where
                 self.buffer.push(shared::Request {
                     network: network.to_string(),
                     pool_address: pair.contract_address,
+                    maybe_duplicate: pair.base_token != ""
+                        && !self.pairs.insert(pair.base_token.clone()),
                     token: if pair.base_token == "" && pair.quote_token == "" {
                         None
                     } else {

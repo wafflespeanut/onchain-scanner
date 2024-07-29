@@ -13,6 +13,8 @@ pub struct Request {
     pub network: String,
     pub pool_address: String,
     pub token: Option<(String, String)>,
+    #[serde(skip)]
+    pub maybe_duplicate: bool,
 }
 
 #[derive(Serialize, Deserialize)]
