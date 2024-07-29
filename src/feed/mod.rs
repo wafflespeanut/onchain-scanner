@@ -53,6 +53,7 @@ pub struct Pair {
     pub base_token: String,
     pub quote_token: String,
     pub contract_address: String,
+    pub mc_or_fdv: Option<f64>,
     pub liquidity: Option<f64>,
 }
 

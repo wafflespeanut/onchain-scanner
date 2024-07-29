@@ -22,6 +22,8 @@ pub struct TokenInfo {
     pub pair_contract_address: String,
     pub quoto_token_symbol: String,
     #[serde(default)]
+    pub fdv: String,
+    #[serde(default)]
     pub liquidity: String,
 }
 
@@ -34,6 +36,7 @@ impl Into<Vec<super::Pair>> for Paginated<TokenInfo> {
                 contract_address: x.pair_contract_address,
                 base_token: x.base_token_symbol,
                 quote_token: x.quoto_token_symbol,
+                mc_or_fdv: x.fdv.parse().ok(),
                 liquidity: x.liquidity.parse().ok(),
             })
             .collect()

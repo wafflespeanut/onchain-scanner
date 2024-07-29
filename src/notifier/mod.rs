@@ -25,6 +25,18 @@ pub trait Notifier {
                 .map(|(base, quote)| format!(" {}/{}", base, quote))
                 .unwrap_or_default(),
         );
+        if let Some(m) = pair.mc_or_fdv {
+            let m = if m > 1_000_000_000.0 {
+                format!("{:.2}B", m / 1_000_000_000.0)
+            } else if m > 1_000_000.0 {
+                format!("{:.2}M", m / 1_000_000.0)
+            } else if m > 1_000.0 {
+                format!("{:.2}K", m / 1_000.0)
+            } else {
+                format!("{:.2}", m)
+            };
+            msg.push_str(&format!(" ${}", m));
+        }
         if pair.maybe_duplicate {
             msg.push_str(" (dup)");
         }

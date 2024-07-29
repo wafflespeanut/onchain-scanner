@@ -19,11 +19,13 @@ impl Into<Vec<super::Pair>> for PaginatedData {
             .map(|x| {
                 let name = x.attributes.name;
                 let mut name = name.split("/");
+                let fdv = x.attributes.fdv_usd.parse().ok();
                 super::Pair {
                     contract_address: x.attributes.address,
                     base_token: name.next().map(|s| s.trim().into()).unwrap_or_default(),
                     quote_token: name.next().map(|s| s.trim().into()).unwrap_or_default(),
-                    liquidity: x.attributes.fdv_usd.parse().ok(),
+                    mc_or_fdv: fdv,
+                    liquidity: fdv,
                 }
             })
             .collect()

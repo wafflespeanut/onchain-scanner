@@ -14,6 +14,8 @@ pub struct Request {
     pub pool_address: String,
     pub token: Option<(String, String)>,
     #[serde(skip)]
+    pub mc_or_fdv: Option<f64>,
+    #[serde(skip)]
     pub maybe_duplicate: bool,
 }
 

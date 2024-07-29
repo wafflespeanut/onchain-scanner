@@ -265,6 +265,7 @@ where
                 self.buffer.push(shared::Request {
                     network: network.to_string(),
                     pool_address: pair.contract_address,
+                    mc_or_fdv: pair.mc_or_fdv,
                     maybe_duplicate: pair.base_token != ""
                         && !self.pairs.insert(pair.base_token.clone()),
                     token: if pair.base_token == "" && pair.quote_token == "" {
